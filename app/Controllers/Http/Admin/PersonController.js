@@ -15,19 +15,22 @@ class PersonController {
    * @param {View} ctx.view
    */
   async index ({ request, response, pagination, transform, auth }) {
-    const query = Person.query()
-    
-    var uid = await auth.getUser()
-    uid = uid.$attributes.id
-
-    query
-      .innerJoin('phones', 'people.id', 'phones.person_id')
-      .where('people.user_id', uid)
- 
-    const people = await query.paginate(pagination.page, pagination.limit)
-    const transformedPeople = await transform.paginate(people, Transformer)
-     
-    return response.send(transformedPeople)    
+    try {
+      var uid = await auth.getUser()
+      uid = uid.$attributes.id
+      const query = Person.query()
+      
+      query
+        .where('user_id', uid)
+        .leftOuterJoin('phones', 'people.id_person', 'phones.person_id')
+       
+      const people = await query.paginate(pagination.page, pagination.limit)
+      const transformedPeople = await transform.paginate(people, Transformer)
+      return response.send(transformedPeople)  
+      
+    } catch (error) {
+      return response.send(error)
+    }  
   }
 
   /**
@@ -71,10 +74,21 @@ class PersonController {
    * @param {Response} ctx.response
    * @param {View} ctx.view
    */
-  async show ({ params: { id }, request, response, transform }) {
-    const person = await Person.findOrFail(id)
-    const transformedPerson = await transform.item(person, Transformer)    
-    return response.send(transformedPerson)
+  async show ({ params: { id }, auth, response, transform }) {
+    try {
+      var uid = await auth.getUser()
+      uid = uid.$attributes.id
+      const query = Person.query()
+  
+      query
+        .where({ user_id: uid, id_person: id })
+        .leftOuterJoin('phones', 'people.id_person', 'phones.person_id')
+  
+      const transformedPerson = await transform.item(query, Transformer)    
+      return response.send(transformedPerson)
+    } catch (error) {
+      return response.send(error)
+    }
   }
 
   /**

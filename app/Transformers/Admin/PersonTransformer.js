@@ -14,7 +14,7 @@ class PersonTransformer extends BumblebeeTransformer {
    */
   transform (model) {
     return {
-      id: model.id,
+      id: model.id_person,
       name: model.name,
       nickname: model.nickname,
       email: model.email,
