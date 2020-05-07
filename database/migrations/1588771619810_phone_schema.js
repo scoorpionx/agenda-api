@@ -6,13 +6,13 @@ const Schema = use('Schema')
 class PhoneSchema extends Schema {
   up () {
     this.create('phones', (table) => {
-      table.increments()
+      table.increments('id_phone')
       table.integer('person_id').unsigned()
       table.string('number', 11).notNullable()
       table.enu('type', ['comercial', 'pessoal']).notNullable()
       table.timestamps()
 
-      table.foreign('person_id').references('id').inTable('people').onDelete('cascade')
+      table.foreign('person_id').references('id_person').inTable('people').onDelete('cascade')
     })
   }
 
