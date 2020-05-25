@@ -18,6 +18,10 @@ adonis new yardstick --api-only
 
 or manually clone the repo and then run `npm install`.
 
+### Config
+
+Open the file .env and set the ** DB_CONNECTION=mysql <br />
+Don't forget of creating the database on mysql before run the migrations and set the user and password.
 
 ### Migrations
 
@@ -26,3 +30,4 @@ Run the following command to run startup migrations.
 ```js
 adonis migration:run
 ```
+
