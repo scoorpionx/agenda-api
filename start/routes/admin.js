@@ -7,6 +7,9 @@ Route.group(() => {
     Route.resource('people', 'PersonController')
         .apiOnly()
     
+    Route.resource('phones', 'PhoneController')
+        .apiOnly()
+    
 })
     .prefix('v1/admin')
     .namespace('Admin')
