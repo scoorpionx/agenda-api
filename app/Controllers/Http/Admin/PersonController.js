@@ -2,6 +2,7 @@
 
 const Database = use('Database')
 const Person = use('App/Models/Person')
+const Phone = use('App/Models/Phone')
 const Transformer = use('App/Transformers/Admin/PersonTransformer')
 
 class PersonController {
@@ -19,18 +20,23 @@ class PersonController {
       var uid = await auth.getUser()
       uid = uid.$attributes.id
       const query = Person.query()
-      
+
       query
+        .select([
+          'people.*',
+          Database.raw('GROUP_CONCAT (`phones`.`id_phone`, ",", `phones`.`number`, ",", `phones`.`type`) AS phones')
+        ])
         .where('user_id', uid)
-        .leftOuterJoin('phones', 'people.id_person', 'phones.person_id')
+        .leftJoin('phones', 'people.id_person', 'phones.person_id')
+        .groupBy('people.id_person')
        
       const people = await query.paginate(pagination.page, pagination.limit)
       const transformedPeople = await transform.paginate(people, Transformer)
       return response.send(transformedPeople)  
       
     } catch (error) {
-      return response.send(error)
-    }  
+      return response.status(400).send(error.message)
+    }
   }
 
   /**
@@ -55,7 +61,7 @@ class PersonController {
       }, trx)
 
       await trx.commit()
-      const transformedPerson = await transform.item(person, Transformer)
+      const transformedPerson = await transform.collection(person, Transformer)
       return response.status(201).send(transformedPerson)
     } catch(err) {
       await trx.rollback()
@@ -74,20 +80,29 @@ class PersonController {
    * @param {Response} ctx.response
    * @param {View} ctx.view
    */
-  async show ({ params: { id }, auth, response, transform }) {
+  async show ({ params: { id }, auth, response, transform, pagination }) {
     try {
       var uid = await auth.getUser()
       uid = uid.$attributes.id
-      const query = Person.query()
-  
-      query
-        .where({ user_id: uid, id_person: id })
-        .leftOuterJoin('phones', 'people.id_person', 'phones.person_id')
-  
-      const transformedPerson = await transform.item(query, Transformer)    
+      const query = Person
+        .query()
+        .select([
+          'people.*',
+          Database.raw('GROUP_CONCAT (`phones`.`id_phone`, ",", `phones`.`number`, ",", `phones`.`type`) AS phones')
+        ])
+        .where({
+          'user_id': uid,
+          'id_person': id
+        })
+        .leftJoin('phones', 'people.id_person', 'phones.person_id')
+        .groupBy('people.id_person')
+        .fetch()
+      
+      const transformedPerson = await transform.collection(query, Transformer)
+          
       return response.send(transformedPerson)
     } catch (error) {
-      return response.send(error)
+      return response.status(400).send(error)
     }
   }
 
@@ -99,14 +114,37 @@ class PersonController {
    * @param {Request} ctx.request
    * @param {Response} ctx.response
    */
-  async update ({ params: { id }, request, response, transform }) {
-    const person = await Person.findOrFail(id)
+  async update ({ params: { id }, request, response, transform, auth }) {
+    var uid = await auth.getUser()
+    uid = uid.$attributes.id
+    
     try {
       const { name, nickname, email } = request.all()
-      product.merge({ name, nickname, email })
-      await product.save()
-
-      const transformedPerson = await transform.item(person, Transformer)
+      
+      await Person
+        .query()
+        .where({
+          'user_id': uid,
+          'id_person': id
+        })
+        .update({ name, nickname, email })
+      
+      const person = await Person
+        .query()
+        .select([
+          'people.*',
+          Database.raw('GROUP_CONCAT (`phones`.`id_phone`, ",", `phones`.`number`, ",", `phones`.`type`) AS phones')
+        ])
+        .where({
+          'user_id': uid,
+          'id_person': id
+        })
+        .leftJoin('phones', 'people.id_person', 'phones.person_id')
+        .groupBy('people.id_person')
+        .fetch()
+    
+      console.log(person)
+      const transformedPerson = await transform.collection(person, Transformer)
       return response.send(transformedPerson)
     } catch(err) {
       return response.status(400).send({
@@ -123,8 +161,17 @@ class PersonController {
    * @param {Request} ctx.request
    * @param {Response} ctx.response
    */
-  async destroy ({ params: { id }, request, response }) {
-    const person = await Person.findOrFail(id)
+  async destroy ({ params: { id }, auth, response }) {
+    var uid = await auth.getUser()
+    uid = uid.$attributes.id
+    const person = Person.query()
+      await person
+        .select()
+        .where({
+          'user_id': uid,
+          'id_person': id
+        })
+        .fetch()
     try {
       await person.delete()
       return response.status(204).send()
